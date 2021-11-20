@@ -16,7 +16,7 @@
 
  - Run the following command to start the programs:
     ```
-    $ python main.py
+    $ python app.py
     ```
  - Follow the instructions on the screen.
  - To run the unit tests and get the code coverage, run the following command:

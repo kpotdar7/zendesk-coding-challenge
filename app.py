@@ -58,7 +58,7 @@ def get_tickets(page: int, config: dict) -> dict:
         # Get tickets
         response = requests.get(url, auth=auth, params=params)
         response.raise_for_status()
-    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError):
+    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError, UnicodeError):
         print("Error: could not connect to the API endpoint.")
         return None
 
@@ -85,7 +85,7 @@ def get_ticket_by_id(ticket_id: int, config: dict) -> dict:
         # Get ticket
         response = requests.get(url, auth=auth)
         response.raise_for_status()
-    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError):
+    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError, UnicodeError):
         print("Error: ticket not found.")
         return None
 
@@ -171,75 +171,77 @@ def get_input(prompt: str, static_input: list = None) -> str:
 
 def main(config_file="config.json", static_input: list = None) -> None:
     """Main function to display the menu and run the program."""
-    print("\nWelcome to the ticket viewer!")
+    try:
+        print("\nWelcome to the ticket viewer!")
 
-    # static_input is only used for unit testing
-    # convert it to a generator if it is not None
-    if static_input is not None:
-        static_input = iter(static_input)
+        # static_input is only used for unit testing
+        # convert it to a generator if it is not None
+        if static_input is not None:
+            static_input = iter(static_input)
 
-    # Load configuration file
-    config = load_config(config_file)
+        # Load configuration file
+        config = load_config(config_file)
 
-    # Exit if config file is invalid
-    if config is None:
-        return
+        # Exit if config file is invalid
+        if config is None:
+            return
 
-    # Set pagination variable to decide whether to use pagination or not
-    pagination = False
+        # Set pagination variable to decide whether to use pagination or not
+        pagination = False
 
-    while True:
-        # Display menu
-        print("\nMenu:")
-        print("1. View all tickets")
-        print("2. View a ticket by ticket ID")
-        print("Type 'quit' to exit")
-        choice = get_input("\nEnter your choice: ", static_input=static_input)
+        while True:
+            # Display menu
+            print("\nMenu:")
+            print("1. View all tickets")
+            print("2. View a ticket by ticket ID")
+            print("Type 'quit' to exit")
+            choice = get_input("\nEnter your choice: ", static_input=static_input)
 
-        # If user wants to quit
-        if choice == "quit":
-            print("\nThanks for using the ticket viewer! Goodbye.")
-            break
+            # If user wants to quit
+            if choice == "quit":
+                print("\nThanks for using the ticket viewer! Goodbye.")
+                break
 
-        # View all tickets
-        elif choice == "1":
-            if pagination:
+            # View all tickets
+            elif choice == "1":
+                if pagination:
+                    try:
+                        page = get_input(
+                            "Enter page number (leave blank for first page): ",
+                            static_input=static_input,
+                        )
+                        page = 1 if page.strip() == "" else int(page)
+                    except ValueError:
+                        print("Error: page number must be an integer.")
+                        continue
+                else:
+                    page = 1
+
+                # Get a dictionary (JSON) of tickets
+                data = get_tickets(page=page, config=config)
+
+                # Display the tickets
+                if data is not None:
+                    # Update pagination variable
+                    pagination = data["count"] > 25
+                    display_tickets(data, page=page)
+
+            # View a ticket by ticket ID
+            elif choice == "2":
                 try:
-                    page = get_input(
-                        "Enter page number (leave blank for first page): ",
-                        static_input=static_input,
-                    )
-                    page = 1 if page.strip() == "" else int(page)
+                    ticket_id = int(get_input("Enter ticket ID: ", static_input=static_input))
                 except ValueError:
-                    print("Error: page number must be an integer.")
+                    print("Error: ticket ID must be an integer.")
                     continue
-            else:
-                page = 1
 
-            # Get a dictionary (JSON) of tickets
-            data = get_tickets(page=page, config=config)
+                # Get a dictionary (JSON) of a single ticket
+                ticket = get_ticket_by_id(ticket_id, config=config)
 
-            # Display the tickets
-            if data is not None:
-                # Update pagination variable
-                pagination = data["count"] > 25
-                display_tickets(data, page=page)
-
-        # View a ticket by ticket ID
-        elif choice == "2":
-            try:
-                ticket_id = int(get_input("Enter ticket ID: ", static_input=static_input))
-            except ValueError:
-                print("Error: ticket ID must be an integer.")
-                continue
-
-            # Get a dictionary (JSON) of a single ticket
-            ticket = get_ticket_by_id(ticket_id, config=config)
-
-            # Display the ticket
-            if ticket is not None:
-                display_single_ticket(ticket)
-
+                # Display the ticket
+                if ticket is not None:
+                    display_single_ticket(ticket)
+    except Exception:
+        print("Some unknown error ocurred.")
 
 if __name__ == "__main__":
     main()
