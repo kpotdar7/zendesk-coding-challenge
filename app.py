@@ -1,40 +1,44 @@
 import json
 import math
-import sys
 
 import requests
 from tabulate import tabulate
 
-# Load config file
-try:
-    with open("config.json") as f:
-        CONFIG = json.load(f)
-except FileNotFoundError:
-    print("Config file not found. Exiting...")
-    sys.exit()
-
 TICKETS_PER_PAGE = 25
 
-# Check validity of the config file
-if "subdomain" not in CONFIG or "email" not in CONFIG or "password" not in CONFIG:
-    print("Error: config file is missing required fields.")
-    sys.exit()
+
+def load_config() -> dict:
+    """Function to load the configuration file."""
+    try:
+        with open("config.json") as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        print("Config file not found. Exiting...")
+        return None
+
+    # Check validity of the config file
+    if "subdomain" not in config or "email" not in config or "password" not in config:
+        print("Error: config file is missing required fields.")
+        return None
+
+    return config
 
 
-def get_tickets(page: int) -> dict:
+def get_tickets(page: int, config: dict) -> dict:
     """
     Function to get a list of tickets for the given page number.
 
     Args:
         page (int): page number to get tickets from
+        config (dict): configuration dictionary
 
     Returns:
         A JSON object containing the list of tickets if the request was successful,
         otherwise None.
     """
     # Set up request
-    url = "https://{}.zendesk.com/api/v2/tickets".format(CONFIG["subdomain"])
-    auth = (CONFIG["email"], CONFIG["password"])
+    url = "https://{}.zendesk.com/api/v2/tickets".format(config["subdomain"])
+    auth = (config["email"], config["password"])
     params = {"page": page, "per_page": TICKETS_PER_PAGE}
 
     try:
@@ -55,20 +59,21 @@ def get_tickets(page: int) -> dict:
         return None
 
 
-def get_ticket_by_id(ticket_id: int) -> dict:
+def get_ticket_by_id(ticket_id: int, config: dict) -> dict:
     """
     Function to get a single ticket by ticket ID.
 
     Args:
         ticket_id (int): ID of the ticket to get
+        config (dict): configuration dictionary
 
     Returns:
         A JSON object containing the ticket if the request was successful,
         otherwise None.
     """
     # Set up request
-    url = "https://{}.zendesk.com/api/v2/tickets/{}".format(CONFIG["subdomain"], ticket_id)
-    auth = (CONFIG["email"], CONFIG["password"])
+    url = "https://{}.zendesk.com/api/v2/tickets/{}".format(config["subdomain"], ticket_id)
+    auth = (config["email"], config["password"])
 
     try:
         # Get ticket
@@ -108,9 +113,9 @@ def display_tickets(data: dict, page: int) -> None:
         subject = ticket["subject"]
         # If subject is too long, truncate it
         if len(subject) > 60:
-            subject = subject[:57] + '...'
+            subject = subject[:57] + "..."
         table.append([ticket["id"], subject, ticket["status"], ticket["priority"]])
-    
+
     print("\n", tabulate(table, headers=headers))
 
     # Extract the total number of pages
@@ -146,6 +151,13 @@ def main() -> None:
     """Main function to display the menu and run the program."""
     print("\nWelcome to the ticket viewer!")
 
+    # Load configuration file
+    config = load_config()
+
+    # Exit if config file is invalid
+    if config is None:
+        return
+
     # Set pagination variable to decide whether to use pagination or not
     pagination = False
 
@@ -175,13 +187,12 @@ def main() -> None:
                 page = 1
 
             # Get a dictionary (JSON) of tickets
-            data = get_tickets(page=page)
-
-            # Update pagination variable
-            pagination = data["count"] > 25
+            data = get_tickets(page=page, config=config)
 
             # Display the tickets
             if data is not None:
+                # Update pagination variable
+                pagination = data["count"] > 25
                 display_tickets(data, page=page)
 
         # View a ticket by ticket ID
@@ -193,7 +204,7 @@ def main() -> None:
                 continue
 
             # Get a dictionary (JSON) of a single ticket
-            ticket = get_ticket_by_id(ticket_id)
+            ticket = get_ticket_by_id(ticket_id, config=config)
 
             # Display the ticket
             if ticket is not None:
