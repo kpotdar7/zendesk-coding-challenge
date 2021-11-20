@@ -1,3 +1,10 @@
+"""
+Zendesk Coding Challenge main file
+
+Author: Keyur Potdar
+Email: kpotdar@cs.stonybrook.edu
+"""
+
 import json
 import math
 
@@ -11,7 +18,7 @@ TICKETS_PER_PAGE = 25
 def load_config(config_file) -> dict:
     """
     Function to load the configuration file.
-    
+
     Args:
         config_file (str): path to the configuration file
     """
@@ -54,7 +61,7 @@ def get_tickets(page: int, config: dict) -> dict:
     except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError):
         print("Error: could not connect to the API endpoint.")
         return None
-        
+
     return response.json()
 
 
@@ -139,12 +146,40 @@ def display_single_ticket(ticket: dict) -> None:
     print()
 
 
-def main() -> None:
+def get_input(prompt: str, static_input: list = None) -> str:
+    """
+    Function to get user input. static_input will only be used during testing.
+
+    Args:
+        prompt (str): prompt to display to the user
+        static_input (list): list of static inputs to use for testing
+
+    Returns:
+        User input as a string
+    """
+    # If this is a test case intput, use the static input
+    if static_input is not None:
+        try:
+            return next(static_input)
+        except StopIteration:
+            return "quit"
+
+    # Otherwise, get user input
+    else:
+        return input(prompt)
+
+
+def main(config_file="config.json", static_input: list = None) -> None:
     """Main function to display the menu and run the program."""
     print("\nWelcome to the ticket viewer!")
 
+    # static_input is only used for unit testing
+    # convert it to a generator if it is not None
+    if static_input is not None:
+        static_input = iter(static_input)
+
     # Load configuration file
-    config = load_config("config.json")
+    config = load_config(config_file)
 
     # Exit if config file is invalid
     if config is None:
@@ -159,7 +194,7 @@ def main() -> None:
         print("1. View all tickets")
         print("2. View a ticket by ticket ID")
         print("Type 'quit' to exit")
-        choice = input("\nEnter your choice: ")
+        choice = get_input("\nEnter your choice: ", static_input=static_input)
 
         # If user wants to quit
         if choice == "quit":
@@ -170,7 +205,10 @@ def main() -> None:
         elif choice == "1":
             if pagination:
                 try:
-                    page = input("Enter page number (leave blank for first page): ")
+                    page = get_input(
+                        "Enter page number (leave blank for first page): ",
+                        static_input=static_input,
+                    )
                     page = 1 if page.strip() == "" else int(page)
                 except ValueError:
                     print("Error: page number must be an integer.")
@@ -190,7 +228,7 @@ def main() -> None:
         # View a ticket by ticket ID
         elif choice == "2":
             try:
-                ticket_id = int(input("Enter ticket ID: "))
+                ticket_id = int(get_input("Enter ticket ID: ", static_input=static_input))
             except ValueError:
                 print("Error: ticket ID must be an integer.")
                 continue
