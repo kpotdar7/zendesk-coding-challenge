@@ -2,15 +2,21 @@ import json
 import math
 
 import requests
+import urllib3
 from tabulate import tabulate
 
 TICKETS_PER_PAGE = 25
 
 
-def load_config() -> dict:
-    """Function to load the configuration file."""
+def load_config(config_file) -> dict:
+    """
+    Function to load the configuration file.
+    
+    Args:
+        config_file (str): path to the configuration file
+    """
     try:
-        with open("config.json") as f:
+        with open(config_file) as f:
             config = json.load(f)
     except FileNotFoundError:
         print("Config file not found. Exiting...")
@@ -45,18 +51,11 @@ def get_tickets(page: int, config: dict) -> dict:
         # Get tickets
         response = requests.get(url, auth=auth, params=params)
         response.raise_for_status()
-    except requests.exceptions.HTTPError:
+    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError):
         print("Error: could not connect to the API endpoint.")
         return None
-
-    # If request successful
-    if response.status_code == 200:
-        # Get tickets from response
-        data = response.json()
-        return data
-    else:
-        print("Error: could not connect to the API endpoint", url)
-        return None
+        
+    return response.json()
 
 
 def get_ticket_by_id(ticket_id: int, config: dict) -> dict:
@@ -79,18 +78,11 @@ def get_ticket_by_id(ticket_id: int, config: dict) -> dict:
         # Get ticket
         response = requests.get(url, auth=auth)
         response.raise_for_status()
-    except requests.exceptions.HTTPError:
+    except (requests.exceptions.HTTPError, urllib3.exceptions.LocationParseError):
         print("Error: ticket not found.")
         return None
 
-    # If request successful
-    if response.status_code == 200:
-        # Get ticket from response
-        ticket = response.json()["ticket"]
-        return ticket
-    else:
-        print("Error: could not connect to the API endpoint", url)
-        return None
+    return response.json()["ticket"]
 
 
 def display_tickets(data: dict, page: int) -> None:
@@ -152,7 +144,7 @@ def main() -> None:
     print("\nWelcome to the ticket viewer!")
 
     # Load configuration file
-    config = load_config()
+    config = load_config("config.json")
 
     # Exit if config file is invalid
     if config is None:
