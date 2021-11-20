@@ -3,6 +3,7 @@ import math
 import sys
 
 import requests
+from tabulate import tabulate
 
 # Load config file
 try:
@@ -40,8 +41,7 @@ def get_tickets(page: int) -> dict:
         # Get tickets
         response = requests.get(url, auth=auth, params=params)
         response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        print(e)
+    except requests.exceptions.HTTPError:
         print("Error: could not connect to the API endpoint.")
         return None
 
@@ -51,7 +51,6 @@ def get_tickets(page: int) -> dict:
         data = response.json()
         return data
     else:
-        print(response.text)
         print("Error: could not connect to the API endpoint", url)
         return None
 
@@ -75,8 +74,7 @@ def get_ticket_by_id(ticket_id: int) -> dict:
         # Get ticket
         response = requests.get(url, auth=auth)
         response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        print(e)
+    except requests.exceptions.HTTPError:
         print("Error: ticket not found.")
         return None
 
@@ -86,7 +84,6 @@ def get_ticket_by_id(ticket_id: int) -> dict:
         ticket = response.json()["ticket"]
         return ticket
     else:
-        print(response.text)
         print("Error: could not connect to the API endpoint", url)
         return None
 
@@ -104,10 +101,17 @@ def display_tickets(data: dict, page: int) -> None:
         print("No tickets found.")
         return
 
-    # If there are tickets
-    print("\nTicket ID\tSubject\tStatus")
+    # Create a table of tickets to display
+    headers = ["Ticket ID", "Subject", "Status", "Priority"]
+    table = []
     for ticket in data["tickets"]:
-        print("{}\t{}\t{}".format(ticket["id"], ticket["subject"], ticket["status"]))
+        subject = ticket["subject"]
+        # If subject is too long, truncate it
+        if len(subject) > 60:
+            subject = subject[:57] + '...'
+        table.append([ticket["id"], subject, ticket["status"], ticket["priority"]])
+    
+    print("\n", tabulate(table, headers=headers))
 
     # Extract the total number of pages
     total_tickets = data["count"]
@@ -133,6 +137,7 @@ def display_single_ticket(ticket: dict) -> None:
     print("\nTicket ID:", ticket["id"])
     print("Subject:", ticket["subject"])
     print("Status:", ticket["status"])
+    print("Priority:", ticket["priority"])
     print("Description:", ticket["description"])
     print()
 
